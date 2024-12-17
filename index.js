@@ -17,10 +17,10 @@ const options = {
   options: { debug: true }, // Включаємо дебаг
   connection: { reconnect: true },
   identity: {
-    username: 'ВАШ_ЛОГІН_БОТА', // Логін вашого бота
-    password: 'oauth:ВАШ_ТОКЕН' // Twitch OAuth токен
+    username: 'hunt3rsbot', // Логін вашого бота
+    password: 'oauth:oxsd08wgp1d6etrg1jhx9zo98d4i9n' // Twitch OAuth токен
   },
-  channels: ['ВАШ_КАНАЛ'] // Канал, де працюватиме бот
+  channels: ['hunt3r_wtf'] // Канал, де працюватиме бот
 };
 
 const client = new tmi.Client(options);
