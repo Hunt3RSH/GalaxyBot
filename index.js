@@ -169,8 +169,7 @@ client.on("chat", async (channel, user, message, self) => {
     const randomReason = reasons[Math.floor(Math.random() * reasons.length)];
 
     client.say(channel, `${randomUser} — ${randomReason}`);
-  }
-if (message.startsWith("!пиво")) {
+    if (message.startsWith("!пиво")) {
     const beerMessages = [
         `🍺 @${user["display-name"]}, це твоє пиво. Насолоджуйся!`,
         `🥳 Ось твоє пиво, @${user['display-name']}! Випий за перемогу!`,
@@ -186,6 +185,7 @@ if (message.startsWith("!пиво")) {
     if (commands[command]) {
       client.say(channel, commands[command]);
     }
+  }
   }
 });
 
