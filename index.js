@@ -188,7 +188,8 @@ client.on("chat", async (channel, user, message, self) => {
 
 // Проста перевірка доступності бота (для Render)
 app.get('/', (req, res) => {
-    res.send('Bot is alive!');
+  res.send('Bot is alive!');
+  console.log(`Server running on req ${req}`);
 });
 
 // Запуск Express серверу на заданому порті
