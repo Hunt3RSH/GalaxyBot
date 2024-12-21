@@ -59,17 +59,25 @@ const periodicMessages = [
   "😊 Залишайте ваші коментарі та думки у чаті — це допомагає стрімеру!",
 ];
 
-// Функція для отримання випадкового індексу
-function getRandomIndex(arrayLength) {
-  return Math.floor(Math.random() * arrayLength);
-}
+let messageIndex = 0;
 
-// Інтервал для періодичних повідомлень (10 хвилин)
+// Функція для надсилання повідомлень послідовно
 setInterval(() => {
-  const randomIndex = getRandomIndex(periodicMessages.length);
-  const message = periodicMessages[randomIndex];
-  client.say("YourChannelName", message); // Замініть на ваш канал
-}, 10 * 60 * 1000); // Інтервал у мілісекундах
+  if (messageIndex < periodicMessages.length) {
+    const message = periodicMessages[messageIndex];
+    client.say("hunt3r_wtf", message); // Замініть на ваш канал
+    messageIndex++; // Переходимо до наступного повідомлення
+  } else {
+    // Якщо всі повідомлення відправлені, повертаємось до першого
+    messageIndex = 0;
+  }
+}, 10 * 60 * 1000); // Інтервал у 10 хвилин (600 000 мс)
+
+// Автоматичний shoutout при рейді
+client.on('raid', (channel, user, viewers) => {
+  const raidMessage = `🎉 Великий рейд від ${user.username} з ${viewers} глядачами! 🥳 Подивіться на канал ${user.username} і підпишіться!`;
+  client.say(channel, raidMessage); // Відправляємо шатаут у ваш канал
+});
 
 // Обробка чат повідомлень
 client.on("chat", async (channel, user, message, self) => {
