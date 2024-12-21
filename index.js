@@ -1,6 +1,5 @@
 const express = require('express');
 const tmi = require('tmi.js');
-const axios = require('axios');
 
 // Ініціалізація додатку Express
 const app = express();
@@ -39,7 +38,7 @@ const commands = {
     "свіжі фотки, мого не свіжого інстаграму https://www.instagram.com/hunt3r_npc",
   "!ланки":
     "виробничі ланки ферми https://clan.cloudflare.steamstatic.com/images//45074709/c62569da04ae0daaaecbd810dec8255186bf39b1.jpg",
-  "!підртимка":
+  "!підтримка":
     "'MONAпідтримка': - це дуже легкий і гарний спосіб підтримати стрімера ось цим посиланням https://send.monobank.ua/jar/8GgAujGTyF",
   "!стім": "посилання на мій стім https://steamcommunity.com/id/Hunt3R_wise/",
   "!трейд":
