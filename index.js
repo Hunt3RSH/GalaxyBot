@@ -171,30 +171,15 @@ client.on("chat", async (channel, user, message, self) => {
 
     client.say(channel, `@${user["display-name"]}, ${randomUser} — ${randomReason}`);
   }
-  if (message.startsWith("!пиво")) {
+if (message.startsWith("!пиво")) {
     const beerMessages = [
-        "🍺 @${user['display-name']}, це твоє пиво. Насолоджуйся!",
-        "🥳 Ось твоє пиво, @${user['display-name']}! Випий за перемогу!",
-        "🍻 Пиво для @${user['display-name']}. Тепер вечір точно буде вдалим!"
+        `🍺 @${user["display-name"]}, це твоє пиво. Насолоджуйся!`,
+        `🥳 Ось твоє пиво, @${user['display-name']}! Випий за перемогу!`,
+        `🍻 Пиво для @${user['display-name']}. Тепер вечір точно буде вдалим!`
     ];
     const randomBeerMessage = beerMessages[Math.floor(Math.random() * beerMessages.length)];
     client.say(channel, randomBeerMessage);
-  }
-  if (message.startsWith("!погода")) {
-    const city = message.split(" ")[1] || "Kyiv";
-    const apiKey = "e669b9b6e5797e247bfd5ba02bbab360";
-    axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric&lang=uk`)
-        .then(response => {
-            const weather = response.data.weather[0].description;
-            const temp = response.data.main.temp;
-            client.say(channel, `Погода в місті ${city}: ${weather}, температура: ${temp}°C`);
-        })
-        .catch(error => {
-            client.say(channel, "Не вдалося отримати погоду. Спробуйте ще раз.");
-        });
-  }
-  
-
+}
 
   // Перевірка на команди
   if (message.startsWith("!")) {
