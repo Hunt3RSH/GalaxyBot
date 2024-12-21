@@ -34,15 +34,11 @@ connectBot();
 const commands = {
   "!github": "https://github.com/Hunt3RSH",
   "!дс": "посилання на мій діскорд сервер https://discord.gg/CSMdbPCHXf",
-  "!інста":
-    "свіжі фотки, мого не свіжого інстаграму https://www.instagram.com/hunt3r_npc",
-  "!ланки":
-    "виробничі ланки ферми https://clan.cloudflare.steamstatic.com/images//45074709/c62569da04ae0daaaecbd810dec8255186bf39b1.jpg",
-  "!підтримка":
-    "'MONAпідтримка': - це дуже легкий і гарний спосіб підтримати стрімера ось цим посиланням https://send.monobank.ua/jar/8GgAujGTyF",
+  "!інста": "свіжі фотки, мого не свіжого інстаграму https://www.instagram.com/hunt3r_npc",
+  "!ланки": "виробничі ланки ферми https://clan.cloudflare.steamstatic.com/images//45074709/c62569da04ae0daaaecbd810dec8255186bf39b1.jpg",
+  "!підтримка": "'MONAпідтримка': - це дуже легкий і гарний спосіб підтримати стрімерa ось цим посиланням https://send.monobank.ua/jar/8GgAujGTyF",
   "!стім": "посилання на мій стім https://steamcommunity.com/id/Hunt3R_wise/",
-  "!трейд":
-    "https://steamcommunity.com/tradeoffer/new/?partner=144581493&token=vfpzrhJzn",
+  "!трейд": "https://steamcommunity.com/tradeoffer/new/?partner=144581493&token=vfpzrhJzn",
   "!dpi": "DPI: 800",
   "!x": "тут я пишу інколи якісь пости https://x.com/Hunt3R__DEV",
 };
@@ -171,7 +167,6 @@ client.on("chat", async (channel, user, message, self) => {
     client.say(channel, `${randomUser} — ${randomReason}`);
   }
 
-  // Команда для пива
   if (message.startsWith("!пиво")) {
     const beerMessages = [
       `🍺 @${user["display-name"]}, це твоє пиво. Насолоджуйся!`,
@@ -189,6 +184,11 @@ client.on("chat", async (channel, user, message, self) => {
       client.say(channel, commands[command]);
     }
   }
+});
+
+// Проста перевірка доступності бота (для Render)
+app.get('/', (req, res) => {
+    res.send('Bot is alive!');
 });
 
 // Запуск Express серверу на заданому порті
