@@ -1,4 +1,12 @@
+const express = require('express');
 const tmi = require('tmi.js');
+
+// Ініціалізація додатку Express
+const app = express();
+
+// Встановлюємо порт із змінної середовища (Render надає порт через process.env.PORT)
+// або використовуємо 3000 для локального запуску
+const port = process.env.PORT || 3000;
 
 // Параметри для бота
 const client = new tmi.Client({
@@ -68,4 +76,9 @@ client.on('message', async (channel, user, message, self) => {
         const warningMessage = `Попався @${user["display-name"]}, Ого, ти сказав 'да'? Я навіть не знаю, як з цим жити. 😱 Будь ласка, обирай слова мудріше, щоб не впасти в гріх!`;
         await client.say(channel, warningMessage);
     }
+});
+
+// Запуск Express серверу на заданому порті
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
