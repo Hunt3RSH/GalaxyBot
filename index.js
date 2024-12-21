@@ -169,15 +169,18 @@ client.on("chat", async (channel, user, message, self) => {
     const randomReason = reasons[Math.floor(Math.random() * reasons.length)];
 
     client.say(channel, `${randomUser} — ${randomReason}`);
-    if (message.startsWith("!пиво")) {
+  }
+
+  // Команда для пива
+  if (message.startsWith("!пиво")) {
     const beerMessages = [
-        `🍺 @${user["display-name"]}, це твоє пиво. Насолоджуйся!`,
-        `🥳 Ось твоє пиво, @${user['display-name']}! Випий за перемогу!`,
-        `🍻 Пиво для @${user['display-name']}. Тепер вечір точно буде вдалим!`
+      `🍺 @${user["display-name"]}, це твоє пиво. Насолоджуйся!`,
+      `🥳 Ось твоє пиво, @${user['display-name']}! Випий за перемогу!`,
+      `🍻 Пиво для @${user['display-name']}. Тепер вечір точно буде вдалим!`
     ];
     const randomBeerMessage = beerMessages[Math.floor(Math.random() * beerMessages.length)];
     client.say(channel, randomBeerMessage);
-}
+  }
 
   // Перевірка на команди
   if (message.startsWith("!")) {
@@ -185,7 +188,6 @@ client.on("chat", async (channel, user, message, self) => {
     if (commands[command]) {
       client.say(channel, commands[command]);
     }
-  }
   }
 });
 
