@@ -30,6 +30,11 @@ async function connectBot() {
 // Виклик функції для підключення
 connectBot();
 
+app.get("/", function (request, response) {
+  response.sendFile(__dirname + '/views/index.html');
+});
+
+
 // Команди для чату
 const commands = {
   "!github": "https://github.com/Hunt3RSH",
@@ -126,6 +131,7 @@ client.on("chat", async (channel, user, message, self) => {
     client.say(channel, response);
   }
 
+
   if (message.startsWith("!розумник")) {
     const username = user["display-name"];
     const categories = {
@@ -176,6 +182,33 @@ client.on("chat", async (channel, user, message, self) => {
     const randomBeerMessage = beerMessages[Math.floor(Math.random() * beerMessages.length)];
     client.say(channel, randomBeerMessage);
   }
+  if (message.startsWith("!напій")) {
+  const drinks = [
+    "Чашка ароматної кави ☕",
+    "Охолоджений лимонад 🍋",
+    "Чай із бергамотом 🍵",
+    "Склянка свіжовичавленого апельсинового соку 🍊",
+    "Кубок гарячого шоколаду 🍫",
+    "Холодний молочний коктейль 🥛",
+    "Енергетичний напій для бадьорості ⚡",
+    "Свіжа вода з м'ятою 💧",
+    "Піна-колада (безалкогольна версія) 🍹",
+    "Домашній узвар 🍎",
+    "Холодне пиво 🍺",
+  ];
+
+  // Генеруємо випадковий напій
+  const randomDrink = drinks[Math.floor(Math.random() * drinks.length)];
+
+  // Формуємо відповідь
+  const username = user["display-name"] || user["username"]; // Резервне ім'я
+  const response = `@${username}, ось ваш випадковий напій: ${randomDrink}`;
+
+  // Відправляємо повідомлення в чат
+  client.say(channel, response);
+}
+
+  
 
   // Перевірка на команди
   if (message.startsWith("!")) {
@@ -189,7 +222,6 @@ client.on("chat", async (channel, user, message, self) => {
 // Проста перевірка доступності бота (для Render)
 app.get('/', (req, res) => {
   res.send('Bot is alive!');
-  console.log(`Server running on req ${req}`);
 });
 
 // Запуск Express серверу на заданому порті
