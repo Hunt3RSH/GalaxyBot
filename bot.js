@@ -1,5 +1,5 @@
-const express = require('express');
-const tmi = require('tmi.js');
+const express = require("express");
+const tmi = require("tmi.js");
 
 // Ініціалізація додатку Express
 const app = express();
@@ -10,40 +10,43 @@ const port = process.env.PORT || 3000;
 
 // Параметри для бота
 const client = new tmi.Client({
-    identity: {
-        username: 'hunt3rsbot', // Ім'я вашого бота
-        password: 'oauth:oxsd08wgp1d6etrg1jhx9zo98d4i9n' // OAuth-токен бота
-    },
-    channels: ['hunt3r_wtf'] // Ваш канал
+  identity: {
+    username: "hunt3rsbot", // Ім'я вашого бота
+    password: "oauth:oxsd08wgp1d6etrg1jhx9zo98d4i9n", // OAuth-токен бота
+  },
+  channels: ["hunt3r_wtf"], // Ваш канал
 });
 
 // Підключення до чату Twitch
 async function connectBot() {
-    try {
-        await client.connect();
-        console.log('Bot connected to chat');
-    } catch (err) {
-        console.error('Error connecting bot:', err);
-    }
+  try {
+    await client.connect();
+    console.log("Bot connected to chat");
+  } catch (err) {
+    console.error("Error connecting bot:", err);
+  }
 }
 
 // Виклик функції для підключення
 connectBot();
 
 app.get("/", function (request, response) {
-  response.sendFile(__dirname + '/views/index.html');
+  response.sendFile(__dirname + "/views/index.html");
 });
-
 
 // Команди для чату
 const commands = {
   "!github": "https://github.com/Hunt3RSH",
   "!дс": "посилання на мій діскорд сервер https://discord.gg/CSMdbPCHXf",
-  "!інста": "свіжі фотки, мого не свіжого інстаграму https://www.instagram.com/hunt3r_npc",
-  "!ланки": "виробничі ланки ферми https://clan.cloudflare.steamstatic.com/images//45074709/c62569da04ae0daaaecbd810dec8255186bf39b1.jpg",
-  "!підтримка": "'MONAпідтримка': - це дуже легкий і гарний спосіб підтримати стрімерa ось цим посиланням https://send.monobank.ua/jar/8GgAujGTyF",
+  "!інста":
+    "свіжі фотки, мого не свіжого інстаграму https://www.instagram.com/hunt3r_npc",
+  "!ланки":
+    "виробничі ланки ферми https://clan.cloudflare.steamstatic.com/images//45074709/c62569da04ae0daaaecbd810dec8255186bf39b1.jpg",
+  "!підтримка":
+    "'MONAпідтримка': - це дуже легкий і гарний спосіб підтримати стрімерa ось цим посиланням https://send.monobank.ua/jar/8GgAujGTyF",
   "!стім": "посилання на мій стім https://steamcommunity.com/id/Hunt3R_wise/",
-  "!трейд": "https://steamcommunity.com/tradeoffer/new/?partner=144581493&token=vfpzrhJzn",
+  "!трейд":
+    "https://steamcommunity.com/tradeoffer/new/?partner=144581493&token=vfpzrhJzn",
   "!dpi": "DPI: 800",
   "!x": "тут я пишу інколи якісь пости https://x.com/Hunt3R__DEV",
 };
@@ -52,6 +55,7 @@ const commands = {
 const periodicMessages = [
   "💡 Не забувайте пити воду під час перегляду стріму!",
   "🔥 Підписуйтесь на канал, щоб не пропустити нові стріми!",
+  "Завітайте на мій сайт! 🎮 Інфа про мене, девайси, команди бота та загальний чат — усе тут! https://hunt3rsh.github.io/streamer-hunt3r/",
   "💬 Ставте свої запитання в чаті — стрімер готовий відповісти!",
   "🎮 Підтримайте стрімерa, використовуючи команду !підтримка",
   "📢 Приєднуйтесь до нашого Discord: https://discord.gg/CSMdbPCHXf",
@@ -74,7 +78,7 @@ setInterval(() => {
 }, 10 * 60 * 1000); // Інтервал у 10 хвилин (600 000 мс)
 
 // Автоматичний shoutout при рейді
-client.on('raid', (channel, user, viewers) => {
+client.on("raid", (channel, user, viewers) => {
   const raidMessage = `🎉 Великий рейд від ${user.username} з ${viewers} глядачами! 🥳 Подивіться на канал ${user.username} і підпишіться!`;
   client.say(channel, raidMessage); // Відправляємо шатаут у ваш канал
 });
@@ -131,7 +135,6 @@ client.on("chat", async (channel, user, message, self) => {
     client.say(channel, response);
   }
 
-
   if (message.startsWith("!розумник")) {
     const username = user["display-name"];
     const categories = {
@@ -176,39 +179,38 @@ client.on("chat", async (channel, user, message, self) => {
   if (message.startsWith("!пиво")) {
     const beerMessages = [
       `🍺 @${user["display-name"]}, це твоє пиво. Насолоджуйся!`,
-      `🥳 Ось твоє пиво, @${user['display-name']}! Випий за перемогу!`,
-      `🍻 Пиво для @${user['display-name']}. Тепер вечір точно буде вдалим!`
+      `🥳 Ось твоє пиво, @${user["display-name"]}! Випий за перемогу!`,
+      `🍻 Пиво для @${user["display-name"]}. Тепер вечір точно буде вдалим!`,
     ];
-    const randomBeerMessage = beerMessages[Math.floor(Math.random() * beerMessages.length)];
+    const randomBeerMessage =
+      beerMessages[Math.floor(Math.random() * beerMessages.length)];
     client.say(channel, randomBeerMessage);
   }
   if (message.startsWith("!напій")) {
-  const drinks = [
-    "Чашка ароматної кави ☕",
-    "Охолоджений лимонад 🍋",
-    "Чай із бергамотом 🍵",
-    "Склянка свіжовичавленого апельсинового соку 🍊",
-    "Кубок гарячого шоколаду 🍫",
-    "Холодний молочний коктейль 🥛",
-    "Енергетичний напій для бадьорості ⚡",
-    "Свіжа вода з м'ятою 💧",
-    "Піна-колада (безалкогольна версія) 🍹",
-    "Домашній узвар 🍎",
-    "Холодне пиво 🍺",
-  ];
+    const drinks = [
+      "Чашка ароматної кави ☕",
+      "Охолоджений лимонад 🍋",
+      "Чай із бергамотом 🍵",
+      "Склянка свіжовичавленого апельсинового соку 🍊",
+      "Кубок гарячого шоколаду 🍫",
+      "Холодний молочний коктейль 🥛",
+      "Енергетичний напій для бадьорості ⚡",
+      "Свіжа вода з м'ятою 💧",
+      "Піна-колада (безалкогольна версія) 🍹",
+      "Домашній узвар 🍎",
+      "Холодне пиво 🍺",
+    ];
 
-  // Генеруємо випадковий напій
-  const randomDrink = drinks[Math.floor(Math.random() * drinks.length)];
+    // Генеруємо випадковий напій
+    const randomDrink = drinks[Math.floor(Math.random() * drinks.length)];
 
-  // Формуємо відповідь
-  const username = user["display-name"] || user["username"]; // Резервне ім'я
-  const response = `@${username}, ось ваш випадковий напій: ${randomDrink}`;
+    // Формуємо відповідь
+    const username = user["display-name"] || user["username"]; // Резервне ім'я
+    const response = `@${username}, ось ваш випадковий напій: ${randomDrink}`;
 
-  // Відправляємо повідомлення в чат
-  client.say(channel, response);
-}
-
-  
+    // Відправляємо повідомлення в чат
+    client.say(channel, response);
+  }
 
   // Перевірка на команди
   if (message.startsWith("!")) {
@@ -220,11 +222,11 @@ client.on("chat", async (channel, user, message, self) => {
 });
 
 // Проста перевірка доступності бота (для Render)
-app.get('/', (req, res) => {
-  res.send('Bot is alive!');
+app.get("/", (req, res) => {
+  res.send("Bot is alive!");
 });
 
 // Запуск Express серверу на заданому порті
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
