@@ -157,6 +157,19 @@ client.on("chat", async (channel, user, message, self) => {
     client.say(channel, response);
   }
 
+  if (message.startsWith("!addicted")) {
+    const username = user["display-name"];
+    const levels = [
+      `${username}, ти 🎮 Casual Gamer – граєш для фану, але не фанатієш.`,
+      `${username}, ти 🕹️ Enthusiast – граєш регулярно, любиш змагатися.`,
+      `${username}, ти 🔥 Hardcore – ти живеш іграми, кожен день – це новий челендж!`,
+      `${username}, ти 💀 No-Life Mode – ти буквально дихаєш іграми, чи ти взагалі виходиш з дому? 😆`,
+    ];
+
+    const randomIndex = Math.floor(Math.random() * levels.length);
+    client.say(channel, levels[randomIndex]);
+  }
+
   if (message.startsWith("!хто")) {
     const users = [
       `Ти сам, @${user["username"]}`,
