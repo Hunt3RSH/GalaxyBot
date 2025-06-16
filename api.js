@@ -1,6 +1,6 @@
 import axios from "axios";
 import { API_CONFIG } from "./config.js";
-import { updateEnvVariable } from "./utils/saveToken.js";
+import { refreshTokenIfNeeded } from "./refreshToken.js";
 
 let currentAccessToken = process.env.ACCESS_TOKEN;
 
@@ -8,50 +8,7 @@ function handleError(error, context) {
   const message = error.response?.data || error.message;
   console.error(`❌ ${context}:`, message);
   console.error(`ℹ️ Статус відповіді:`, error.response?.status);
-  return null;
-}
-
-export async function refreshToken() {
-  try {
-    const params = new URLSearchParams();
-    params.append("grant_type", "refresh_token");
-    params.append("client_id", process.env.CLIENT_ID);
-    params.append("client_secret", process.env.CLIENT_SECRET);
-    params.append("refresh_token", process.env.REFRESH_TOKEN);
-
-    console.log(
-      `ℹ️ Спроба оновлення токена з client_id=${process.env.CLIENT_ID.slice(
-        0,
-        5
-      )}..., refresh_token=${process.env.REFRESH_TOKEN?.slice(0, 5)}...`
-    );
-
-    const res = await axios.post(
-      "https://id.kick.com/oauth/token",
-      params.toString(),
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      }
-    );
-
-    const { access_token, refresh_token } = res.data;
-    updateEnvVariable("ACCESS_TOKEN", access_token);
-    updateEnvVariable("REFRESH_TOKEN", refresh_token);
-    currentAccessToken = access_token;
-    console.log("✅ Токен оновлено");
-    return access_token;
-  } catch (error) {
-    console.error(
-      "❌ Помилка оновлення токена:",
-      error.response?.data || error.message
-    );
-    if (error.response?.data?.error === "invalid_grant") {
-      console.error(
-        "⚠️ REFRESH_TOKEN невалідний. Потрібна повторна авторизація через /login."
-      );
-    }
-    return null;
-  }
+  return message;
 }
 
 async function requestWithTokenRefresh(requestFn, context) {
@@ -60,8 +17,9 @@ async function requestWithTokenRefresh(requestFn, context) {
   } catch (error) {
     if (error.response?.status === 401) {
       console.log(`ℹ️ Отримано 401 для ${context}, оновлюємо токен...`);
-      const newToken = await refreshToken();
+      const newToken = await refreshTokenIfNeeded();
       if (newToken) {
+        currentAccessToken = newToken;
         try {
           return await requestFn(newToken);
         } catch (retryError) {
@@ -132,10 +90,7 @@ export async function sendChatMessage(
 ) {
   return requestWithTokenRefresh(async (token) => {
     console.log(
-      "Надсилаємо повідомлення з broadcaster_user_id:",
-      broadcasterUserId,
-      "Вміст:",
-      content
+      `ℹ️ Надсилаємо повідомлення: broadcaster_user_id=${broadcasterUserId}, content="${content}", replyToMessageId=${replyToMessageId}`
     );
     const body = {
       broadcaster_user_id: broadcasterUserId,
@@ -153,6 +108,7 @@ export async function sendChatMessage(
         },
       }
     );
+    console.log("ℹ️ Відповідь API на повідомлення:", response.data);
     if (response.data.data?.is_sent) {
       console.log(`✅ Повідомлення відправлено: "${content}"`);
       return response.data;
