@@ -1,3 +1,6 @@
+/**
+ * Конфігурація API та констант
+ */
 export const API_CONFIG = {
   BASE_URL: "https://api.kick.com",
   ENDPOINTS: {
@@ -17,3 +20,8 @@ export const CACHE_CONFIG = {
 };
 
 export const REQUIRED_ENV = ["KICK_CHANNEL_NAME", "KICK_CHANNEL_SLUG"];
+
+export const BOT_CONFIG = {
+  PERIODIC_MESSAGE_INTERVAL: 7 * 60 * 1000, // 7 хвилин у мілісекундах
+  PERIODIC_MESSAGE_TEXT: "!galaxy",
+};

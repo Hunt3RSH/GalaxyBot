@@ -1,13 +1,37 @@
 import { createClient } from "@retconned/kick-js";
 import dotenv from "dotenv";
-import { checkToken, getChannelInfo, sendChatMessage } from "./api.js";
+import {
+  checkToken,
+  getChannelInfo,
+  sendChatMessage,
+  refreshToken,
+} from "./api.js";
 import { handleCommand } from "./commands.js";
-import { REQUIRED_ENV, CACHE_CONFIG } from "./config.js";
+import { REQUIRED_ENV, CACHE_CONFIG, BOT_CONFIG } from "./config.js";
+import { appendToMentionsFile } from "./utils/saveToken.js";
 
 dotenv.config();
 
-// Кеш для відстеження оброблених повідомлень
+// Кеш для відстеження оброблених повідомлень і згадок
 const processedMessages = new Set();
+const processedMentions = new Set();
+
+// Змінна для зберігання поточного токена
+let currentAccessToken = process.env.ACCESS_TOKEN;
+
+async function attemptLogin(client, token) {
+  try {
+    await client.login({
+      type: "tokens",
+      credentials: { bearerToken: token },
+    });
+    console.log("✅ Авторизація успішна");
+    return true;
+  } catch (error) {
+    console.error("❌ Помилка авторизації:", error.message);
+    return false;
+  }
+}
 
 /**
  * Ініціалізація та запуск бота
@@ -18,6 +42,7 @@ export async function startServer(accessToken) {
     "🚀 Виклик startServer з токеном:",
     accessToken.slice(0, 10) + "..."
   );
+  currentAccessToken = accessToken;
 
   // Перевірка змінних середовища
   for (const envVar of REQUIRED_ENV) {
@@ -58,14 +83,15 @@ export async function startServer(accessToken) {
     broadcaster_user_id: broadcasterUserId,
     chatroom_id: chatroomId,
     bot_user_id: botUserId,
+    channel_id: channelId,
   } = channelInfo || {};
 
   // Тестове повідомлення
   if (broadcasterUserId) {
     await sendChatMessage(
       broadcasterUserId,
-      "Бот запущено! Напишіть !hello, щоб привітатися.",
-      accessToken
+      "[emote:39251:beeBobble]",
+      currentAccessToken
     );
   }
 
@@ -75,17 +101,49 @@ export async function startServer(accessToken) {
     readOnly: false,
   });
 
-  console.log("Спроба авторизації з токеном...");
-
-  try {
-    await client.login({
-      type: "tokens",
-      credentials: { bearerToken: accessToken },
-    });
-  } catch (error) {
-    console.error("❌ Помилка авторизації:", error.message);
+  // Спроба авторизації
+  if (!(await attemptLogin(client, accessToken))) {
     return;
   }
+
+  // Періодичне повідомлення кожні 7 хвилин
+  let isConnected = false;
+  const periodicMessageInterval = setInterval(async () => {
+    if (!isConnected || !broadcasterUserId) {
+      console.log(
+        "ℹ️ Періодичне повідомлення пропущено: бот не підключений або відсутній broadcasterUserId"
+      );
+      return;
+    }
+    try {
+      const result = await sendChatMessage(
+        broadcasterUserId,
+        BOT_CONFIG.PERIODIC_MESSAGE_TEXT,
+        currentAccessToken
+      );
+      if (!result) {
+        console.log("ℹ️ Спроба оновлення токена через невдале повідомлення...");
+        const newToken = await refreshToken();
+        if (newToken) {
+          currentAccessToken = newToken;
+          await attemptLogin(client, newToken);
+          await sendChatMessage(
+            broadcasterUserId,
+            BOT_CONFIG.PERIODIC_MESSAGE_TEXT,
+            currentAccessToken
+          );
+        }
+      }
+      console.log(
+        `ℹ️ Періодичне повідомлення відправлено: "${BOT_CONFIG.PERIODIC_MESSAGE_TEXT}"`
+      );
+    } catch (error) {
+      console.error(
+        "❌ Помилка відправки періодичного повідомлення:",
+        error.message
+      );
+    }
+  }, BOT_CONFIG.PERIODIC_MESSAGE_INTERVAL);
 
   // Обробники подій
   client.on("ready", () => {
@@ -93,6 +151,7 @@ export async function startServer(accessToken) {
       `✅ Бот підключений як ${client.user?.tag || "невідомий користувач"}`
     );
     console.log(`Підключено до каналу: ${process.env.KICK_CHANNEL_NAME}`);
+    isConnected = true;
   });
 
   client.on("ChatMessage", async (message) => {
@@ -120,8 +179,49 @@ export async function startServer(accessToken) {
       CACHE_CONFIG.MESSAGE_TTL
     );
 
+    // Обробка згадок @Hunt3R_WTF
+    if (message.content.toLowerCase().includes("@hunt3r_wtf")) {
+      const mentionKey = `${message.sender.id}:${message.created_at}`;
+      if (!processedMentions.has(mentionKey)) {
+        processedMentions.add(mentionKey);
+        setTimeout(
+          () => processedMentions.delete(mentionKey),
+          CACHE_CONFIG.MESSAGE_TTL
+        );
+
+        const timestamp = new Date()
+          .toISOString()
+          .replace("T", " ")
+          .slice(0, 19);
+        appendToMentionsFile("Hunt3R_WTF", message.sender.username, timestamp);
+      }
+    }
+
     // Обробка команд
-    await handleCommand(message, broadcasterUserId, accessToken);
+    try {
+      await handleCommand(
+        message,
+        broadcasterUserId,
+        currentAccessToken,
+        channelId
+      );
+    } catch (error) {
+      console.error("❌ Помилка обробки команди:", error.message);
+      if (error.response?.status === 401) {
+        console.log("ℹ️ Спроба оновлення токена через 401 у команді...");
+        const newToken = await refreshToken();
+        if (newToken) {
+          currentAccessToken = newToken;
+          await attemptLogin(client, newToken);
+          await handleCommand(
+            message,
+            broadcasterUserId,
+            currentAccessToken,
+            channelId
+          );
+        }
+      }
+    }
   });
 
   client.on("pusher:connection_established", () => {});
@@ -130,7 +230,27 @@ export async function startServer(accessToken) {
     console.log(`ℹ️ Невідома подія: ${event.type}`);
   });
 
-  client.on("error", (error) => {
+  client.on("error", async (error) => {
     console.error("❌ Помилка клієнта:", error.message);
+    isConnected = false;
+    if (
+      error.message.includes("401") ||
+      error.message.includes("Unauthorized")
+    ) {
+      console.log("ℹ️ Спроба оновлення токена через помилку клієнта...");
+      const newToken = await refreshToken();
+      if (newToken) {
+        currentAccessToken = newToken;
+        await attemptLogin(client, newToken);
+        isConnected = true;
+      }
+    }
+  });
+
+  // Очищення інтервалу при відключенні
+  client.on("close", () => {
+    console.log("ℹ️ Бот відключений, очищаємо періодичне повідомлення");
+    clearInterval(periodicMessageInterval);
+    isConnected = false;
   });
 }

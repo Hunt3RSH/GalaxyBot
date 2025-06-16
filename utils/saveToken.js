@@ -4,21 +4,30 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export function updateEnvVariable(key, value) {
-  const envConfig = fs.readFileSync(".env", "utf-8");
-  const lines = envConfig.split("\n");
-  let updated = false;
+  try {
+    const envConfig = dotenv.parse(fs.readFileSync(".env"));
+    envConfig[key] = value;
 
-  const newLines = lines.map((line) => {
-    if (line.startsWith(`${key}=`)) {
-      updated = true;
-      return `${key}=${value}`;
-    }
-    return line;
-  });
+    const envContent = Object.entries(envConfig)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n");
 
-  if (!updated) {
-    newLines.push(`${key}=${value}`);
+    fs.writeFileSync(".env", envContent + "\n");
+    console.log(`✅ Оновлено .env: ${key}=${value.slice(0, 10)}...`);
+  } catch (error) {
+    console.error(`❌ Помилка оновлення .env для ${key}:`, error.message);
   }
+}
 
-  fs.writeFileSync(".env", newLines.join("\n"));
+export function appendToMentionsFile(mentionedUser, byUser, timestamp) {
+  const key = `MENTION_${timestamp.replace(/[- :]/g, "")}`;
+  const value = `${mentionedUser} mentioned by ${byUser} at ${timestamp}`;
+  const line = `${key}=${value}\n`;
+
+  try {
+    fs.appendFileSync("mentions.env", line);
+    console.log(`✅ Згадку додано до mentions.env: ${key}`);
+  } catch (error) {
+    console.error(`❌ Помилка запису до mentions.env:`, error.message);
+  }
 }
