@@ -33,10 +33,29 @@ async function attemptLogin(client, token) {
   }
 }
 
-/**
- * Ініціалізація та запуск бота
- * @param {string} accessToken - Токен доступу
- */
+async function retryGetChannelInfo(slug, token, retries = 3) {
+  let attempt = 0;
+  while (attempt < retries) {
+    console.log(
+      `ℹ️ Спроба ${attempt + 1} отримати channelInfo для slug: ${slug}`
+    );
+    const channelInfo = await getChannelInfo(slug, token);
+    if (channelInfo) return channelInfo;
+    attempt++;
+    if (attempt < retries) {
+      console.log("ℹ️ Чекаємо 5 секунд перед повторною спробою...");
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const newToken = await refreshToken();
+      if (newToken) {
+        currentAccessToken = newToken;
+        token = newToken;
+      }
+    }
+  }
+  console.error("❌ Не вдалося отримати channelInfo після всіх спроб");
+  return null;
+}
+
 export async function startServer(accessToken) {
   console.log(
     "🚀 Виклик startServer з токеном:",
@@ -70,30 +89,27 @@ export async function startServer(accessToken) {
   }
 
   // Отримання інформації про канал
-  const channelInfo = await getChannelInfo(
+  const channelInfo = await retryGetChannelInfo(
     process.env.KICK_CHANNEL_SLUG,
     accessToken
   );
   if (!channelInfo) {
-    console.error(
-      "⚠️ Не вдалося отримати інформацію про канал, але продовжуємо"
-    );
+    console.error("❌ Зупиняємо бот через неможливість отримати channelInfo");
+    return;
   }
   const {
     broadcaster_user_id: broadcasterUserId,
     chatroom_id: chatroomId,
     bot_user_id: botUserId,
     channel_id: channelId,
-  } = channelInfo || {};
+  } = channelInfo;
 
   // Тестове повідомлення
-  if (broadcasterUserId) {
-    await sendChatMessage(
-      broadcasterUserId,
-      "[emote:39251:beeBobble]",
-      currentAccessToken
-    );
-  }
+  await sendChatMessage(
+    broadcasterUserId,
+    "[emote:39251:beeBobble]",
+    currentAccessToken
+  );
 
   // Ініціалізація клієнта
   const client = createClient(process.env.KICK_CHANNEL_NAME, {
@@ -106,9 +122,12 @@ export async function startServer(accessToken) {
     return;
   }
 
-  // Періодичне повідомлення кожні 7 хвилин
+  // Періодичне повідомлення кожні 5 хвилин
   let isConnected = false;
   const periodicMessageInterval = setInterval(async () => {
+    console.log(
+      `ℹ️ Перевірка періодичного повідомлення: isConnected=${isConnected}, broadcasterUserId=${broadcasterUserId}`
+    );
     if (!isConnected || !broadcasterUserId) {
       console.log(
         "ℹ️ Періодичне повідомлення пропущено: бот не підключений або відсутній broadcasterUserId"
@@ -241,16 +260,23 @@ export async function startServer(accessToken) {
       const newToken = await refreshToken();
       if (newToken) {
         currentAccessToken = newToken;
-        await attemptLogin(client, newToken);
-        isConnected = true;
+        if (await attemptLogin(client, newToken)) {
+          isConnected = true;
+        }
       }
     }
   });
 
   // Очищення інтервалу при відключенні
-  client.on("close", () => {
+  client.on("close", async () => {
     console.log("ℹ️ Бот відключений, очищаємо періодичне повідомлення");
     clearInterval(periodicMessageInterval);
     isConnected = false;
+    // Спроба повторного підключення
+    console.log("ℹ️ Спроба повторного підключення через 10 секунд...");
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    if (await attemptLogin(client, currentAccessToken)) {
+      isConnected = true;
+    }
   });
 }

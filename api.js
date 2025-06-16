@@ -7,6 +7,7 @@ let currentAccessToken = process.env.ACCESS_TOKEN;
 function handleError(error, context) {
   const message = error.response?.data || error.message;
   console.error(`❌ ${context}:`, message);
+  console.error(`ℹ️ Статус відповіді:`, error.response?.status);
   return null;
 }
 
@@ -29,7 +30,7 @@ export async function refreshToken() {
     const { access_token, refresh_token } = res.data;
     updateEnvVariable("ACCESS_TOKEN", access_token);
     updateEnvVariable("REFRESH_TOKEN", refresh_token);
-    currentAccessToken = access_token; // Оновлюємо поточний токен
+    currentAccessToken = access_token;
     console.log("✅ Токен оновлено");
     return access_token;
   } catch (error) {
@@ -62,7 +63,6 @@ async function requestWithTokenRefresh(requestFn, context) {
     return handleError(error, context);
   }
 }
-
 export async function checkToken(accessToken) {
   return requestWithTokenRefresh(async (token) => {
     const response = await axios.get(
@@ -81,6 +81,9 @@ export async function checkToken(accessToken) {
 
 export async function getChannelInfo(slug, accessToken) {
   return requestWithTokenRefresh(async (token) => {
+    console.log(
+      `ℹ️ Запит до API для slug: ${slug}, токен: ${token.slice(0, 10)}...`
+    );
     const response = await axios.get(
       `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CHANNELS}?slug=${slug}`,
       {
@@ -90,9 +93,10 @@ export async function getChannelInfo(slug, accessToken) {
         },
       }
     );
+    console.log("ℹ️ Відповідь API:", response.data);
     const channel = response.data.data?.[0];
     if (!channel) {
-      console.error("❌ Канал не знайдено");
+      console.error("❌ Канал не знайдено для slug:", slug);
       return null;
     }
     console.log("Отримано broadcaster_user_id:", channel.broadcaster_user_id);
@@ -178,7 +182,7 @@ export async function isModerator(userId, channelId, accessToken) {
   console.log(
     `ℹ️ Перевірка модератора для userId: ${userId} відключена через помилку API`
   );
-  return false; // Тимчасово відключено
+  return false;
 }
 
 export async function findCategoryId(categoryName, accessToken) {

@@ -22,6 +22,6 @@ export const CACHE_CONFIG = {
 export const REQUIRED_ENV = ["KICK_CHANNEL_NAME", "KICK_CHANNEL_SLUG"];
 
 export const BOT_CONFIG = {
-  PERIODIC_MESSAGE_INTERVAL: 7 * 60 * 1000, // 7 хвилин у мілісекундах
+  PERIODIC_MESSAGE_INTERVAL: 5 * 60 * 1000, // 5 хвилин у мілісекундах
   PERIODIC_MESSAGE_TEXT: "!galaxy",
 };
