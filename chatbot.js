@@ -18,6 +18,7 @@ const processedMentions = new Set();
 
 // Змінна для зберігання поточного токена
 let currentAccessToken = process.env.ACCESS_TOKEN;
+let tokenInvalid = false;
 
 async function attemptLogin(client, token) {
   try {
@@ -33,59 +34,60 @@ async function attemptLogin(client, token) {
   }
 }
 
-async function retryGetChannelInfo(slug, token, retries = 3) {
+async function retryGetChannelInfo(slug, token, retries = 1) {
   let attempt = 0;
   while (attempt < retries) {
     console.log(
-      `ℹ️ Спроба ${attempt + 1} отримати channelInfo для slug: ${slug}`
+      `📡 Attempt ${attempt + 1} to fetch channelInfo for slug: ${slug}`
     );
     const channelInfo = await getChannelInfo(slug, token);
     if (channelInfo) return channelInfo;
     attempt++;
     if (attempt < retries) {
-      console.log("ℹ️ Чекаємо 5 секунд перед повторною спробою...");
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      console.log("⏳ Waiting 5ms before retry...");
+      await new Promise((resolve) => setTimeout(resolve, 5));
       const newToken = await refreshToken();
       if (newToken) {
         currentAccessToken = newToken;
         token = newToken;
+      } else {
+        tokenInvalid = true;
       }
     }
   }
-  console.error("❌ Не вдалося отримати channelInfo після всіх спроб");
+  console.error("❌ Failed to fetch channelInfo after retries.");
   return null;
 }
 
 export async function startServer(accessToken) {
   console.log(
-    "🚀 Виклик startServer з токеном:",
+    "🚀 Starting server with token:",
     accessToken.slice(0, 10) + "..."
   );
   currentAccessToken = accessToken;
+  tokenInvalid = false;
 
   // Перевірка змінних середовища
   for (const envVar of REQUIRED_ENV) {
     if (!process.env[envVar]) {
-      console.error(`❌ ${envVar} не встановлено в .env`);
+      console.error(`❌ ${envVar} not set in .env`);
       return;
     }
   }
 
   if (!accessToken) {
-    console.error("❌ accessToken не надано");
+    console.error("❌ No accessToken provided");
     return;
   }
 
   console.log(
-    `🤖 Ініціалізація бота для каналу: ${process.env.KICK_CHANNEL_NAME}`
+    `🤖 Initializing bot for channel: ${process.env.KICK_CHANNEL_NAME}`
   );
 
   // Перевірка токена
   const userData = await checkToken(accessToken);
   if (!userData) {
-    console.error(
-      "⚠️ Продовжуємо без даних користувача через невалідний токен"
-    );
+    console.error("⚠️ Continuing without user data due to invalid token");
   }
 
   // Отримання інформації про канал
@@ -94,7 +96,7 @@ export async function startServer(accessToken) {
     accessToken
   );
   if (!channelInfo) {
-    console.error("❌ Зупиняємо бот через неможливість отримати channelInfo");
+    console.error("❌ Stopping bot due to failure to fetch channelInfo");
     return;
   }
   const {
@@ -122,16 +124,19 @@ export async function startServer(accessToken) {
     return;
   }
 
-  // Періодичне повідомлення кожні 5 хвилин
+  // Періодичне повідомлення кожні 7 хвилин
   let isConnected = false;
   const periodicMessageInterval = setInterval(async () => {
     console.log(
-      `ℹ️ Перевірка періодичного повідомлення: isConnected=${isConnected}, broadcasterUserId=${broadcasterUserId}`
+      `ℹ️ Checking periodic message: isConnected=${isConnected}, broadcasterUserId=${broadcasterUserId}, tokenInvalid=${tokenInvalid}`
     );
-    if (!isConnected || !broadcasterUserId) {
+    if (!isConnected || !broadcasterUserId || tokenInvalid) {
       console.log(
-        "ℹ️ Періодичне повідомлення пропущено: бот не підключений або відсутній broadcasterUserId"
+        "ℹ️ Periodic message skipped: bot not connected, no broadcasterUserId, or invalid token"
       );
+      if (tokenInvalid) {
+        console.error("⚠️ Token is invalid. Please reauthorize via /login.");
+      }
       return;
     }
     try {
@@ -141,7 +146,7 @@ export async function startServer(accessToken) {
         currentAccessToken
       );
       if (!result) {
-        console.log("ℹ️ Спроба оновлення токена через невдале повідомлення...");
+        console.log("ℹ️ Attempting token refresh due to failed message...");
         const newToken = await refreshToken();
         if (newToken) {
           currentAccessToken = newToken;
@@ -151,25 +156,22 @@ export async function startServer(accessToken) {
             BOT_CONFIG.PERIODIC_MESSAGE_TEXT,
             currentAccessToken
           );
+        } else {
+          tokenInvalid = true;
         }
       }
       console.log(
-        `ℹ️ Періодичне повідомлення відправлено: "${BOT_CONFIG.PERIODIC_MESSAGE_TEXT}"`
+        `ℹ️ Periodic message sent: "${BOT_CONFIG.PERIODIC_MESSAGE_TEXT}"`
       );
     } catch (error) {
-      console.error(
-        "❌ Помилка відправки періодичного повідомлення:",
-        error.message
-      );
+      console.error("❌ Error sending periodic message:", error.message);
     }
   }, BOT_CONFIG.PERIODIC_MESSAGE_INTERVAL);
 
   // Обробники подій
   client.on("ready", () => {
-    console.log(
-      `✅ Бот підключений як ${client.user?.tag || "невідомий користувач"}`
-    );
-    console.log(`Підключено до каналу: ${process.env.KICK_CHANNEL_NAME}`);
+    console.log(`✅ Bot connected as ${client.user?.tag || "unknown user"}`);
+    console.log(`Connected to channel: ${process.env.KICK_CHANNEL_NAME}`);
     isConnected = true;
   });
 
@@ -180,16 +182,14 @@ export async function startServer(accessToken) {
 
     // Ігнорування власних повідомлень
     if (message.sender.id === botUserId) {
-      console.log(
-        `ℹ️ Ігноруємо власне повідомлення від ${message.sender.username}`
-      );
+      console.log(`ℹ️ Ignoring own message from ${message.sender.username}`);
       return;
     }
 
     // Перевірка на дублювання
     const messageKey = `${message.sender.id}:${message.content}:${message.created_at}`;
     if (processedMessages.has(messageKey)) {
-      console.log(`ℹ️ Повідомлення ${messageKey} уже оброблено, ігноруємо`);
+      console.log(`ℹ️ Message ${messageKey} already processed, ignoring`);
       return;
     }
     processedMessages.add(messageKey);
@@ -225,9 +225,9 @@ export async function startServer(accessToken) {
         channelId
       );
     } catch (error) {
-      console.error("❌ Помилка обробки команди:", error.message);
+      console.error("❌ Error processing command:", error.message);
       if (error.response?.status === 401) {
-        console.log("ℹ️ Спроба оновлення токена через 401 у команді...");
+        console.log("ℹ️ Attempting token refresh due to 401 in command...");
         const newToken = await refreshToken();
         if (newToken) {
           currentAccessToken = newToken;
@@ -238,6 +238,8 @@ export async function startServer(accessToken) {
             currentAccessToken,
             channelId
           );
+        } else {
+          tokenInvalid = true;
         }
       }
     }
@@ -246,37 +248,44 @@ export async function startServer(accessToken) {
   client.on("pusher:connection_established", () => {});
   client.on("pusher_internal:subscription_succeeded", () => {});
   client.on("unknown", (event) => {
-    console.log(`ℹ️ Невідома подія: ${event.type}`);
+    console.log(`ℹ️ Unknown event: ${event.type}`);
   });
 
   client.on("error", async (error) => {
-    console.error("❌ Помилка клієнта:", error.message);
+    console.error("❌ Client error:", error.message);
     isConnected = false;
     if (
       error.message.includes("401") ||
       error.message.includes("Unauthorized")
     ) {
-      console.log("ℹ️ Спроба оновлення токена через помилку клієнта...");
+      console.log("ℹ️ Attempting token refresh due to client error...");
       const newToken = await refreshToken();
       if (newToken) {
         currentAccessToken = newToken;
         if (await attemptLogin(client, newToken)) {
           isConnected = true;
         }
+      } else {
+        tokenInvalid = true;
       }
     }
   });
 
   // Очищення інтервалу при відключенні
   client.on("close", async () => {
-    console.log("ℹ️ Бот відключений, очищаємо періодичне повідомлення");
+    console.log("ℹ️ Bot disconnected, clearing periodic message");
     clearInterval(periodicMessageInterval);
     isConnected = false;
-    // Спроба повторного підключення
-    console.log("ℹ️ Спроба повторного підключення через 10 секунд...");
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    if (await attemptLogin(client, currentAccessToken)) {
-      isConnected = true;
+    if (!tokenInvalid) {
+      console.log("ℹ️ Attempting reconnect in 10 seconds...");
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+      if (await attemptLogin(client, currentAccessToken)) {
+        isConnected = true;
+      }
+    } else {
+      console.error(
+        "⚠️ Reconnect skipped due to invalid token. Please reauthorize via /login."
+      );
     }
   });
 }

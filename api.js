@@ -19,6 +19,13 @@ export async function refreshToken() {
     params.append("client_secret", process.env.CLIENT_SECRET);
     params.append("refresh_token", process.env.REFRESH_TOKEN);
 
+    console.log(
+      `ℹ️ Спроба оновлення токена з client_id=${process.env.CLIENT_ID.slice(
+        0,
+        5
+      )}..., refresh_token=${process.env.REFRESH_TOKEN?.slice(0, 5)}...`
+    );
+
     const res = await axios.post(
       "https://id.kick.com/oauth/token",
       params.toString(),
@@ -38,6 +45,11 @@ export async function refreshToken() {
       "❌ Помилка оновлення токена:",
       error.response?.data || error.message
     );
+    if (error.response?.data?.error === "invalid_grant") {
+      console.error(
+        "⚠️ REFRESH_TOKEN невалідний. Потрібна повторна авторизація через /login."
+      );
+    }
     return null;
   }
 }
@@ -63,6 +75,7 @@ async function requestWithTokenRefresh(requestFn, context) {
     return handleError(error, context);
   }
 }
+
 export async function checkToken(accessToken) {
   return requestWithTokenRefresh(async (token) => {
     const response = await axios.get(
