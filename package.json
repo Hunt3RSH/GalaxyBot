@@ -12,6 +12,7 @@
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "kick-websocket-client": "^0.0.2",
+    "moment-timezone": "^0.6.0",
     "ngrok": "^5.0.0-beta.2",
     "node-fetch": "^3.3.2",
     "open": "^10.1.2",

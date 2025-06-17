@@ -1,15 +1,20 @@
 import { createClient } from "@retconned/kick-js";
 import dotenv from "dotenv";
 import { checkToken, getChannelInfo, sendChatMessage } from "./api.js";
-import { refreshTokenIfNeeded } from "./refreshToken.js";
+import { refreshToken } from "./auth.js";
+import { handleCommand } from "./commands.js";
 import { REQUIRED_ENV, CACHE_CONFIG, BOT_CONFIG } from "./config.js";
 import { appendToMentionsFile } from "./utils/saveToken.js";
 
 dotenv.config();
 
-// Кеш для відстеження оброблених повідомлень і згадок
+// Перевірка імпорту handleCommand
+
+// Кеш для відстеження оброблених повідомлень, згадок, відповідей і ID повідомлень бота
 const processedMessages = new Set();
 const processedMentions = new Set();
+const processedReplies = new Set();
+const botMessageIds = new Set();
 
 // Змінна для зберігання поточного токена
 let currentAccessToken = process.env.ACCESS_TOKEN;
@@ -41,7 +46,7 @@ async function retryGetChannelInfo(slug, token, retries = 3) {
     if (attempt < retries) {
       console.log("ℹ️ Чекаємо 5 секунд перед повторною спробою...");
       await new Promise((resolve) => setTimeout(resolve, 5000));
-      const newToken = await refreshTokenIfNeeded();
+      const newToken = await refreshToken();
       if (newToken) {
         currentAccessToken = newToken;
         token = newToken;
@@ -109,8 +114,15 @@ export async function startServer(accessToken) {
     "[emote:39251:beeBobble]",
     currentAccessToken
   );
-  if (!testMessageResult) {
-    console.error("❌ Не вдалося відправити тестове повідомлення");
+  if (testMessageResult?.data?.message_id) {
+    botMessageIds.add(testMessageResult.data.message_id);
+    console.log(
+      `ℹ️ Збережено ID тестового повідомлення: ${testMessageResult.data.message_id}`
+    );
+  } else {
+    console.error(
+      "❌ Не вдалося відправити тестове повідомлення або отримати message_id"
+    );
   }
 
   // Ініціалізація клієнта
@@ -148,9 +160,15 @@ export async function startServer(accessToken) {
         BOT_CONFIG.PERIODIC_MESSAGE_TEXT,
         currentAccessToken
       );
+      if (result?.data?.message_id) {
+        botMessageIds.add(result.data.message_id);
+        console.log(
+          `ℹ️ Збережено ID періодичного повідомлення: ${result.data.message_id}`
+        );
+      }
       if (!result) {
         console.log("ℹ️ Спроба оновлення токена через невдале повідомлення...");
-        const newToken = await refreshTokenIfNeeded();
+        const newToken = await refreshToken();
         if (newToken) {
           currentAccessToken = newToken;
           await attemptLogin(client, newToken);
@@ -160,6 +178,12 @@ export async function startServer(accessToken) {
             BOT_CONFIG.PERIODIC_MESSAGE_TEXT,
             currentAccessToken
           );
+          if (result?.data?.message_id) {
+            botMessageIds.add(result.data.message_id);
+            console.log(
+              `ℹ️ Збережено ID періодичного повідомлення після оновлення: ${result.data.message_id}`
+            );
+          }
         } else {
           tokenInvalid = true;
           console.error(
@@ -183,15 +207,21 @@ export async function startServer(accessToken) {
       );
       if (error.response?.status === 401) {
         console.log("ℹ️ Спроба оновлення токена через 401...");
-        const newToken = await refreshTokenIfNeeded();
+        const newToken = await refreshToken();
         if (newToken) {
           currentAccessToken = newToken;
           await attemptLogin(client, newToken);
-          await sendChatMessage(
+          const result = await sendChatMessage(
             broadcasterUserId,
             BOT_CONFIG.PERIODIC_MESSAGE_TEXT,
             currentAccessToken
           );
+          if (result?.data?.message_id) {
+            botMessageIds.add(result.data.message_id);
+            console.log(
+              `ℹ️ Збережено ID періодичного повідомлення після 401: ${result.data.message_id}`
+            );
+          }
         } else {
           tokenInvalid = true;
         }
@@ -210,7 +240,11 @@ export async function startServer(accessToken) {
 
   client.on("ChatMessage", async (message) => {
     console.log(
-      `${message.sender.username}: ${message.content}, chatroom_id: ${message.chatroom_id}, message_id: ${message.id}, sender_id: ${message.sender.id}`
+      `${message.sender.username}: ${message.content}, chatroom_id: ${
+        message.chatroom_id
+      }, message_id: ${message.id}, sender_id: ${
+        message.sender.id
+      }, reply_to_message_id: ${message.reply_to_message_id || "none"}`
     );
 
     // Ігнорування власних повідомлень
@@ -233,6 +267,35 @@ export async function startServer(accessToken) {
       CACHE_CONFIG.MESSAGE_TTL
     );
 
+    // Обробка відповідей на повідомлення бота
+    if (
+      message.reply_to_message_id &&
+      botMessageIds.has(message.reply_to_message_id)
+    ) {
+      const replyKey = `${message.sender.id}:${message.created_at}`;
+      if (!processedReplies.has(replyKey)) {
+        processedReplies.add(replyKey);
+        setTimeout(
+          () => processedReplies.delete(replyKey),
+          CACHE_CONFIG.MESSAGE_TTL
+        );
+
+        const timestamp = new Date()
+          .toISOString()
+          .replace("T", " ")
+          .slice(0, 19);
+        console.log(
+          `ℹ️ Підготовка до збереження відповіді: replyKey=${replyKey}, timestamp=${timestamp}`
+        );
+        appendToMentionsFile(
+          "Reply_to_Bot",
+          message.sender.username,
+          timestamp,
+          message.content
+        );
+      }
+    }
+
     // Обробка згадок @Hunt3R_WTF
     if (message.content.toLowerCase().includes("@hunt3r_wtf")) {
       const mentionKey = `${message.sender.id}:${message.created_at}`;
@@ -247,7 +310,15 @@ export async function startServer(accessToken) {
           .toISOString()
           .replace("T", " ")
           .slice(0, 19);
-        appendToMentionsFile("Hunt3R_WTF", message.sender.username, timestamp);
+        console.log(
+          `ℹ️ Підготовка до збереження згадки: mentionKey=${mentionKey}, timestamp=${timestamp}`
+        );
+        appendToMentionsFile(
+          "Hunt3R_WTF",
+          message.sender.username,
+          timestamp,
+          message.content
+        );
       }
     }
 
@@ -263,7 +334,7 @@ export async function startServer(accessToken) {
       console.error("❌ Помилка обробки команди:", error.message);
       if (error.response?.status === 401) {
         console.log("ℹ️ Спроба оновлення токена через 401 у команді...");
-        const newToken = await refreshTokenIfNeeded();
+        const newToken = await refreshToken();
         if (newToken) {
           currentAccessToken = newToken;
           await attemptLogin(client, newToken);
@@ -294,7 +365,7 @@ export async function startServer(accessToken) {
       error.message.includes("Unauthorized")
     ) {
       console.log("ℹ️ Спроба оновлення токена через помилку клієнта...");
-      const newToken = await refreshTokenIfNeeded();
+      const newToken = await refreshToken();
       if (newToken) {
         currentAccessToken = newToken;
         if (await attemptLogin(client, newToken)) {
